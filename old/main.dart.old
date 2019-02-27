@@ -1,0 +1,42 @@
+import 'dart:math';
+import 'dart:typed_data';
+
+// NOTE: Dart's SIMD only supports 4x4 matrices, so if you have more than
+// 4 parameters, things will need to change.
+
+var itemCount = 2;
+var learningRate = 0.1;
+var epochs = 10;
+var max = 1000;
+
+void main() {
+  // We have a function, z = 3x + 5y + 2.
+  var rnd = Random();
+  var alpha = Float32x4(learningRate, learningRate, 0, 0);
+
+  // Generate training data.
+  var trainingInputs = Float32x4List.fromList(List.generate(itemCount, (_) {
+    return Float32x4(rnd.nextDouble() * max, rnd.nextDouble() * max, 0, 0);
+  }));
+  var trainingOutputs =
+      Float32x4List.fromList(List.generate(trainingInputs.length, (i) {
+    return trainingInputs[i] * Float32x4(3, 5, 1, 1);
+  }));
+
+  // Initialize random weights.
+  var weights = Float32x4(rnd.nextDouble(), rnd.nextDouble(), 0, 0);
+
+  // Train it.
+  for (int epoch = 1; epoch <= epochs; epoch++) {
+    for (int i = 0; i < trainingInputs.length; i++) {
+      var input = trainingInputs[i];
+      var expected = trainingOutputs[i];
+      var computed = input * weights;
+      var diff = computed - expected;
+      var error = diff * diff; // Mean squared error
+      weights -= error + alpha;
+    }
+  }
+
+  print('Final weights: $weights');
+}

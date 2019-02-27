@@ -1,0 +1,70 @@
+import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
+
+void main() {
+  // Our function is z = 3x + 5y + 2.
+  var rnd = Random();
+  var xs = Float32x4(0, 1, 2, 3);
+  var ys = Float32x4(3, 4, 5, 6);
+  var zs = Float32x4(17, 25, 33, 41);
+  var wX = Float32x4.splat(rnd.nextDouble());
+  var wY = Float32x4.splat(rnd.nextDouble());
+  var wBias = Float32x4.splat(rnd.nextDouble());
+  var bias = Float32x4.splat(2);
+  var alpha = Float32x4.splat(0.01);
+
+  Float32x4 avg(Float32x4 x) {
+    var a = (x.w + x.x + x.y + x.z) / 4;
+    return Float32x4.splat(a);
+  }
+
+  Float32x4 backprop(Float32x4 current, Float32x4 error) {
+    var withAlpha = error * alpha;
+    // return current - withAlpha;
+    var weight = current.x;
+    weight -= withAlpha.x; // * xs.x;
+    weight -= withAlpha.y; // * xs.y;
+    weight -= withAlpha.z; // * xs.z;
+    weight -= withAlpha.w; // * xs.w;
+    return Float32x4.splat(weight);
+  }
+
+  for (int epoch = 0; epoch < 1000; epoch++) {
+    var computed = (wX * xs) + (wY * ys) + (wBias * bias);
+    var diff = computed - zs;
+    var error = diff * Float32x4.splat(0.5);
+    wX = backprop(wX, error);
+    wY = backprop(wY, error);
+    wBias = backprop(wBias, error);
+  }
+
+  // wX = avg(wX);
+  // wY = avg(wY);
+  // wBias = avg(wBias);
+  print('Final wX: $wX');
+  print('Final wY: $wY');
+  print('Final wBias: $wBias');
+
+  while (true) {
+    stdout.write("Enter x,y separated by comma: ");
+    var values = stdin
+        .readLineSync()
+        .split(',')
+        .where((s) => s.trim().isNotEmpty)
+        .map(double.parse)
+        .toList();
+    var x = values[0];
+    var y = values[1];
+    var actual = ((3 * x) + (5 * y) + (bias.w));
+    var computed4 = (wX * Float32x4.splat(values[0])) +
+        (wY * Float32x4.splat(values[1])) +
+        (bias * wBias);
+    print(computed4);
+    var computed = computed4.y;
+    var error = ((actual - computed).abs() / computed) * 100;
+    print('Actual ~= ${actual.toStringAsFixed(4)}');
+    print('Computed ~= ${computed.toStringAsFixed(4)}');
+    print('Error ~= ${error.toStringAsFixed(2)}%');
+  }
+}
